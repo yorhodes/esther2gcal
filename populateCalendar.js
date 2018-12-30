@@ -92,7 +92,6 @@ function insertAllCourseEvents(auth, colorIDs) {
 
 function insertEvent(auth, eventContents) {
     const calendar = google.calendar({version: 'v3', auth});
-    console.log(eventContents.recurrence)
     calendar.events.insert({
       calendarId: 'primary',
       resource: eventContents

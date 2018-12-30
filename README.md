@@ -51,4 +51,4 @@ This will request email authorization. Choose the email account that you want th
 - integrate Rice academic calendar to exclude dates
 - exclusion of holidays?
 - fix end date in recurrence rule
-
+- fix first day of classes glitch
