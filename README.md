@@ -3,8 +3,7 @@
 ## Features
 - recurring events
 - 10 minute push notification reminders
-- course color-coding
-- 
+- course color-coding 
 
 ## Prerequisites
 - [Node.js](https://nodejs.org/en/)
@@ -33,21 +32,22 @@ node parseEsther.js
 
 Output will be written to `courses.json`
 
-<!-- ### Optional Config
-
-Specify configuration options in `config.json` such as...
-- include waitlisted courses
-- custom timezone
-
-  -->
-
 ## Populate Calendar
 
 ```
 node populateCalendar.js
 ```
 
-This will request email authorization. This is the email that your calendar events will be written to (Rice Email is a good choice). Follow the console instructions carefully to ensure API token is generated properly.
+This will request email authorization. Choose the email account that you want the calendar events on. Follow the console instructions carefully to ensure GCal API token is generated properly.
 
+## Contribution Ideas
 
+- config file allowing for custom...
+    - timezone
+    - include waitlist flag
+    - number of mins before class notification
+    - color-coding
+- integrate Rice academic calendar to exclude dates
+- exclusion of holidays?
+- 
 

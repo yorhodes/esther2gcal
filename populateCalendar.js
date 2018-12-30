@@ -1,13 +1,11 @@
 const fs = require('fs');
 const readline = require('readline');
 const {google} = require('googleapis');
+const date = require('date-and-time');
 
-// If modifying these scopes, delete token.json.
-const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
-// The file token.json stores the user's access and refresh tokens, and is
-// created automatically when the authorization flow completes for the first
-// time.
-const TOKEN_PATH = 'token.json';
+
+const SCOPES = ['https://www.googleapis.com/auth/calendar.events']
+const TOKEN_PATH = 'token.json'
 
 const courses = require('./courses.json')
 
@@ -69,14 +67,78 @@ function getAccessToken(oAuth2Client, callback) {
 }
 
 function insertAllCourseEvents(auth) {
-    courses.map((course) => {
+    courses.map((course, i) => {
         // ignore waitlist courses
-        if (course.status.includes("Web Registered")) {
-            event = createEventFromCourse(course)
+        if (course.status.includes("Web Registered") && i == 0) {
+            const event = createEventFromCourse(course)
             console.log(event)
             // insertEvent(auth, event)
         }
     })
+}
+
+function insertEvent(auth, eventContents) {
+    const calendar = google.calendar({version: 'v3', auth});
+    calendar.events.insert({
+      calendarId: 'primary',
+      event: eventContents
+    }, (err, res) => {
+        if (err) 
+            return console.log('The API returned an error: ' + err);
+        else 
+            return console.log(res);
+    });
+}
+
+function formatMeridiem(original) {
+    const result1 = original.replace("pm", "p.m.")
+    const result2 = result1.replace("am", "a.m.")
+    return result2
+}
+
+function getDateTime(dateStr, timeStr) {
+    return date.parse(dateStr + formatMeridiem(timeStr), "MMM D, YYYYh:mm A")
+}
+
+function createEventFromCourse(course) {
+    const timezone = "America/Chicago"
+    var event = {
+        start: {
+            timeZone: timezone
+        },
+        end: {
+            timeZone: timezone
+        }
+    }
+
+    const delim = ' - '
+
+    const [startDate, endDate] = course.activeDates.split(delim)
+    const [startTime, endTime] = course.timeSpan.split(delim)
+
+    const startDateStartTime = getDateTime(startDate, startTime)
+    const startDateEndTime = getDateTime(startDate, endTime)
+
+    event.start.dateTime = startDateStartTime
+    event.end.dateTime = startDateEndTime
+
+    const bydayStr = convertDaysOfWeekToBYDAY(course.daysOfWeek)
+    const untilStr = getDateTime(endDate, endTime).toJSON();
+    event.recurrence = [
+        "RRULE:" //recurrence rule 
+        + "FREQ=WEEKLY;" // weekly frequency
+        + "WKST=SU;"     // sunday weekday start
+        + "BYDAY=" + bydayStr + ";" // dynamic weekdays
+        + "UNTIL=" + untilStr       // stop recurrence upon semester end
+    ]
+
+    const [name, code, section] = course.courseDesc.split(delim)
+
+    event.summary = code
+    event.description = name + " " + section
+    event.location = course.location
+
+    return event
 }
 
 function convertDaysOfWeekToBYDAY(daysOfWeek) {
@@ -105,36 +167,3 @@ function convertDaysOfWeekToBYDAY(daysOfWeek) {
     return bydays.join(',')
 }
 
-function createEventFromCourse(course) {
-    [name, code, section] = course.courseDesc.split(' - ')
-
-    timezoneObj = {timeZone: "America/Chicago"}
-    event = {
-        start: timezoneObj,
-        end: timezoneObj
-    }
-
-    event.summary = code
-    event.description = name + ", section: " + section
-    event.location = course.location
-
-    bydayStr = convertDaysOfWeekToBYDAY(course.daysOfWeek)
-    event.recurrence = [
-        'RRULE:FREQ=WEEKLY;WKST=SU;BYDAY=' + bydayStr
-    ]
-
-    return event
-}
-
-function insertEvent(auth, eventContents) {
-    const calendar = google.calendar({version: 'v3', auth});
-    calendar.events.insert({
-      calendarId: 'primary',
-      event: eventContents
-    }, (err, res) => {
-        if (err) 
-            return console.log('The API returned an error: ' + err);
-        else 
-            return console.log(res);
-    });
-}

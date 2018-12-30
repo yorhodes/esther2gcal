@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
+    "date-and-time": "^0.6.3",
     "googleapis": "^27.0.0"
   }
 }
