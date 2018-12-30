@@ -46,7 +46,7 @@ function getAccessToken(oAuth2Client, callback) {
     access_type: 'offline',
     scope: SCOPES,
   });
-  console.log('Authorize this app by visiting this url:', authUrl);
+  console.log('Authorize this app by visiting this url:\n', authUrl);
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -59,7 +59,7 @@ function getAccessToken(oAuth2Client, callback) {
       // Store the token to disk for later program executions
       fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
         if (err) console.error(err);
-        console.log('Token stored to', TOKEN_PATH);
+        console.log('Token stored to ', TOKEN_PATH);
       });
       callback(oAuth2Client);
     });
@@ -70,18 +70,21 @@ function insertAllCourseEvents(auth) {
     courses.map((course, i) => {
         // ignore waitlist courses
         if (course.status.includes("Web Registered") && i == 0) {
-            const event = createEventFromCourse(course)
-            console.log(event)
-            // insertEvent(auth, event)
+            const events = createEventsFromCourse(course)
+            events.map((e, j) => {
+                if (j == 0)
+                    insertEvent(auth, e)
+            })
         }
     })
 }
 
 function insertEvent(auth, eventContents) {
     const calendar = google.calendar({version: 'v3', auth});
+    console.log(eventContents.recurrence)
     calendar.events.insert({
       calendarId: 'primary',
-      event: eventContents
+      resource: eventContents
     }, (err, res) => {
         if (err) 
             return console.log('The API returned an error: ' + err);
@@ -97,73 +100,78 @@ function formatMeridiem(original) {
 }
 
 function getDateTime(dateStr, timeStr) {
-    return date.parse(dateStr + formatMeridiem(timeStr), "MMM D, YYYYh:mm A")
+    ogDate = date.parse(dateStr + formatMeridiem(timeStr), "MMM D, YYYYh:mm A")
+    return date.addHours(ogDate, 1).toJSON()
 }
 
-function createEventFromCourse(course) {
+function createEventsFromCourse(course) {
     const timezone = "America/Chicago"
-    var event = {
-        start: {
-            timeZone: timezone
-        },
-        end: {
-            timeZone: timezone
+    var events = []
+
+    course.meets.map((meet) => {
+        var event = {
+            start: {
+                timeZone: timezone
+            },
+            end: {
+                timeZone: timezone
+            }
         }
-    }
+    
+        const delim = ' - '
+    
+        const [startDate, endDate] = meet.activeDates.split(delim)
+        const [startTime, endTime] = meet.timeSpan.split(delim)
+    
+        const startDateStartTime = getDateTime(startDate, startTime)
+        const startDateEndTime = getDateTime(startDate, endTime)
+    
+        event.start.dateTime = startDateStartTime
+        event.end.dateTime = startDateEndTime
+    
+        if (startDate != endDate) {
+            const bydayStr = convertDaysOfWeekToBYDAY(meet.daysOfWeek)
+            const untilStr = getDateTime(endDate, endTime)
+            event.recurrence = [
+                "RRULE:" //recurrence rule 
+                + "FREQ=WEEKLY;" // weekly frequency
+                + "WKST=SU;"     // sunday weekday start
+                + "BYDAY=" + bydayStr // dynamic weekdays
+                // + "UNTIL=" + untilStr       // stop recurrence upon semester end
+            ]
+        }   
+    
+        const len = course.courseDesc.length
+        const section = course.courseDesc.substring(len - 3)
+        const code = course.courseDesc.substring(len - 14, len - 6)
+        const name = course.courseDesc.substring(0, len - 17)
+    
+        event.summary = code 
+        event.description = name + " " + section
+        event.location = meet.location
+        event.reminders = {
+            useDefault: true
+        }
 
-    const delim = ' - '
+        events.push(event)
+    })
 
-    const [startDate, endDate] = course.activeDates.split(delim)
-    const [startTime, endTime] = course.timeSpan.split(delim)
-
-    const startDateStartTime = getDateTime(startDate, startTime)
-    const startDateEndTime = getDateTime(startDate, endTime)
-
-    event.start.dateTime = startDateStartTime
-    event.end.dateTime = startDateEndTime
-
-    const bydayStr = convertDaysOfWeekToBYDAY(course.daysOfWeek)
-    const untilStr = getDateTime(endDate, endTime).toJSON();
-    event.recurrence = [
-        "RRULE:" //recurrence rule 
-        + "FREQ=WEEKLY;" // weekly frequency
-        + "WKST=SU;"     // sunday weekday start
-        + "BYDAY=" + bydayStr + ";" // dynamic weekdays
-        + "UNTIL=" + untilStr       // stop recurrence upon semester end
-    ]
-
-    const [name, code, section] = course.courseDesc.split(delim)
-
-    event.summary = code
-    event.description = name + " " + section
-    event.location = course.location
-
-    return event
+    return events
 }
 
 function convertDaysOfWeekToBYDAY(daysOfWeek) {
-    bydays = []
-    daysOfWeek.split('').map((dayChar) => {
-        switch (dayChar) {
-            case 'M': 
-                bydays.push("MO")
-                break;
-            case 'T':
-                bydays.push("TU")
-                break;
-            case 'W':
-                bydays.push("WE")
-                break;
-            case 'R':
-                bydays.push("TH")
-                break;
-            case 'F':
-                bydays.push("FR")
-                break;
-            default:
-                break;
-        }
-    })
+    const dayMap = {
+        'M': "MO",
+        'T': "TU",
+        'W': "WE",
+        'R': "TH",
+        'F': "FR"
+    }
+
+    var bydays = []
+
+    daysOfWeek.split('').map(dayChar => bydays.push(dayMap[dayChar]))
+
     return bydays.join(',')
 }
 

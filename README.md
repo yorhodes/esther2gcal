@@ -2,8 +2,9 @@
 
 ## Features
 - recurring events
-- 10 minute push notification reminders
-- course color-coding 
+- reminders
+- course color-coding
+- multiple meeting times/locations (including final exam) 
 
 ## Prerequisites
 - [Node.js](https://nodejs.org/en/)
