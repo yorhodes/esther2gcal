@@ -1,7 +1,7 @@
 const fs = require('fs')
 const $ = require('cheerio')
 
-const htmlString = fs.readFileSync('Student Detail Schedule2.html').toString()
+const htmlString = fs.readFileSync('Student Detail Schedule.html').toString()
 const parsedHTML = $.load(htmlString)
 
 var courses = []

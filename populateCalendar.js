@@ -4,7 +4,7 @@ const {google} = require('googleapis');
 const date = require('date-and-time');
 
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar.events']
+const SCOPES = ['https://www.googleapis.com/auth/calendar.events', 'https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.settings.readonly']
 const TOKEN_PATH = 'token.json'
 
 const courses = require('./courses.json')
@@ -13,7 +13,7 @@ const courses = require('./courses.json')
 fs.readFile('credentials.json', (err, content) => {
   if (err) return console.log('Error loading client secret file:', err);
   // Authorize a client with credentials, then call the Google Calendar API.
-  authorize(JSON.parse(content), insertAllCourseEvents);
+  authorize(JSON.parse(content), fillCalendar);
 });
 
 /**
@@ -66,15 +66,26 @@ function getAccessToken(oAuth2Client, callback) {
   });
 }
 
-function insertAllCourseEvents(auth) {
+function fillCalendar(auth) {
+    const calendar = google.calendar({version: 'v3', auth});
+    
+    calendar.colors.get((err, res) => {
+        if (err)
+            return console.log('The API returned an error: ' + err)
+        else
+            return insertAllCourseEvents(auth, Object.keys(res.data.event))
+    })
+}
+
+function insertAllCourseEvents(auth, colorIDs) {
+    var colors = colorIDs
     courses.map((course, i) => {
         // ignore waitlist courses
-        if (course.status.includes("Web Registered") && i == 0) {
-            const events = createEventsFromCourse(course)
-            events.map((e, j) => {
-                if (j == 0)
-                    insertEvent(auth, e)
-            })
+        if (course.status.includes("Web Registered")) {
+            const idx = Math.floor(Math.random() * colors.length)
+            const events = createEventsFromCourse(course, colors[idx])
+            events.map((e, j) => insertEvent(auth, e))
+            colors.splice(idx, 1)
         }
     })
 }
@@ -88,8 +99,6 @@ function insertEvent(auth, eventContents) {
     }, (err, res) => {
         if (err) 
             return console.log('The API returned an error: ' + err);
-        else 
-            return console.log(res);
     });
 }
 
@@ -101,10 +110,10 @@ function formatMeridiem(original) {
 
 function getDateTime(dateStr, timeStr) {
     ogDate = date.parse(dateStr + formatMeridiem(timeStr), "MMM D, YYYYh:mm A")
-    return date.addHours(ogDate, 1).toJSON()
+    return date.addHours(ogDate, 1)
 }
 
-function createEventsFromCourse(course) {
+function createEventsFromCourse(course, colorIdStr) {
     const timezone = "America/Chicago"
     var events = []
 
@@ -115,7 +124,8 @@ function createEventsFromCourse(course) {
             },
             end: {
                 timeZone: timezone
-            }
+            },
+            colorId: colorIdStr
         }
     
         const delim = ' - '
@@ -126,12 +136,13 @@ function createEventsFromCourse(course) {
         const startDateStartTime = getDateTime(startDate, startTime)
         const startDateEndTime = getDateTime(startDate, endTime)
     
-        event.start.dateTime = startDateStartTime
-        event.end.dateTime = startDateEndTime
+        event.start.dateTime = startDateStartTime.toJSON()
+        event.end.dateTime = startDateEndTime.toJSON()
     
         if (startDate != endDate) {
             const bydayStr = convertDaysOfWeekToBYDAY(meet.daysOfWeek)
             const untilStr = getDateTime(endDate, endTime)
+
             event.recurrence = [
                 "RRULE:" //recurrence rule 
                 + "FREQ=WEEKLY;" // weekly frequency
