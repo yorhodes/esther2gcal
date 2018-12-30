@@ -1,4 +1,10 @@
-# Guide to convert Esther Student Detail Schedule into Recurring, Color-Coded, Google Calendar Events 
+# Guide to convert Esther Student Detail Schedule into Google Calendar Events 
+
+## Features
+- recurring events
+- 10 minute push notification reminders
+- course color-coding
+- 
 
 ## Prerequisites
 - [Node.js](https://nodejs.org/en/)
@@ -8,8 +14,8 @@
 ## Installation
 
 ```
-git clone <url here>
-cd <dir>
+git clone https://github.com/yorhodes/esther2gcal.git
+cd esther2gcal
 npm install
 ```
 
